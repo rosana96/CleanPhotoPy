@@ -1,17 +1,19 @@
 # import the necessary packages
-import numpy as np
-import imutils
 import cv2
+import imutils
+import numpy as np
 
 
 def testHomography(matrix, imageA, imageB):
-
+    blockDim = 100
+    start = 0
+    end = start + blockDim
     pts = []
-    for x in range(100,200 ):
-        for y in range(100, 200):
+    for x in range(start, end):
+        for y in range(start, end):
             pts.append([x, y])
 
-    pts = np.array(pts, dtype=np.float32).reshape((-1, 1, 2)) #todo what does reshape do?
+    pts = np.array(pts, dtype=np.float32).reshape((-1, 1, 2))  # todo what does reshape do?
     dst = cv2.perspectiveTransform(pts, matrix)
     b = []
     minx = 10000
@@ -32,14 +34,18 @@ def testHomography(matrix, imageA, imageB):
         print(str(xp) + "   " + str(yp) + "\n")
         b.append([xp, yp])
 
-    miny=max(miny,0)
-    minx=max(minx,0)
-    crop_img = imageA[miny:maxy, minx:maxx]
-    orig_img=imageB[100:200, 100:200]
-    cv2.imshow("orig",orig_img)
+    miny = max(miny, 0)
+    minx = max(minx, 0)
+    crop_img = imageA[miny:(miny + blockDim), minx:(minx + blockDim)]
+    orig_img = imageB[start:end, start:end]
+    cv2.imshow("orig", orig_img)
     cv2.imshow("cropped", crop_img)
+
+    wp = cv2.warpPerspective(imageB, matrix, (700, 700))
+    # cv2.imshow("wp", wp)
     # cv2.imshow("a", imageA)
 
+    pass
 
 
 class Stitcher:
@@ -47,17 +53,17 @@ class Stitcher:
         # determine if we are using OpenCV v3.X
         self.isv3 = imutils.is_cv3()
 
-    def stitch(self, images, ratio=0.75, reprojThresh=4.0, #todo what are these
-            showMatches=False):
+    def getHomography(self, images, ratio=0.75, reprojThresh=4.0,  # todo what are these
+                      showMatches=True):
         # unpack the images, then detect keypoints and extract
         # local invariant descriptors from them
-        (imageB, imageA) = images
-        (kpsA, featuresA) = self.detectAndDescribe(imageA)
+        (imageA, imageB) = images
         (kpsB, featuresB) = self.detectAndDescribe(imageB)
+        (kpsA, featuresA) = self.detectAndDescribe(imageA)
 
         # match features between the two images
-        M = self.matchKeypoints(kpsA, kpsB,
-                                featuresA, featuresB, ratio, reprojThresh)
+        M = self.matchKeypoints(kpsB, kpsA,
+                                featuresB, featuresA, ratio, reprojThresh)
 
         # if the match is None, then there aren't enough matched
         # keypoints to create a panorama
@@ -67,11 +73,17 @@ class Stitcher:
         # otherwise, apply a perspective warp to stitch the images
         # together
         (matches, H, status) = M
-        result = cv2.warpPerspective(imageA, H,
-                                     (imageA.shape[1] + imageB.shape[1], imageA.shape[0]))
-        result[0:imageB.shape[0], 0:imageB.shape[1]] = imageB
+        testHomography(H, imageA, imageB)
 
-        testHomography(H, imageB, imageA)
+        return H
+
+        result = cv2.warpPerspective(imageB, H,
+                                     (imageB.shape[1] + imageA.shape[1], imageB.shape[0]+100))
+        cv2.imshow("b", result)
+
+        result[0:imageA.shape[0], 0:imageA.shape[1]] = imageA
+
+        return H
 
         # check to see if the keypoint matches should be visualized
         if showMatches:
@@ -144,13 +156,13 @@ class Stitcher:
         # otherwise, no homograpy could be computed
         return None
 
-    def drawMatches(self, imageA, imageB, kpsA, kpsB, matches, status):
+    def drawMatches(self, imageB, imageA, kpsB, kpsA, matches, status):
         # initialize the output visualization image
-        (hA, wA) = imageA.shape[:2]
-        (hB, wB) = imageB.shape[:2]
-        vis = np.zeros((max(hA, hB), wA + wB, 3), dtype="uint8")
-        vis[0:hA, 0:wA] = imageA
-        vis[0:hB, wA:] = imageB
+        (heightA, widthA) = imageA.shape[:2]
+        (heightB, widthB) = imageB.shape[:2]
+        vis = np.zeros((max(heightA, heightB), widthA + widthB, 3), dtype="uint8")
+        vis[0:heightA, 0:widthA] = imageA
+        vis[0:heightB, widthA:] = imageB
 
         # loop over the matches
         for ((trainIdx, queryIdx), s) in zip(matches, status):
@@ -159,7 +171,7 @@ class Stitcher:
             if s == 1:
                 # draw the match
                 ptA = (int(kpsA[queryIdx][0]), int(kpsA[queryIdx][1]))
-                ptB = (int(kpsB[trainIdx][0]) + wA, int(kpsB[trainIdx][1]))
+                ptB = (int(kpsB[trainIdx][0]) + widthA, int(kpsB[trainIdx][1]))
                 cv2.line(vis, ptA, ptB, (0, 255, 0), 1)
 
         # return the visualization
