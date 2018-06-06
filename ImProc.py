@@ -1,6 +1,9 @@
-import numpy as np
 import cv2
+import numpy as np
+
 from pyimagesearch import panorama
+
+
 class ImProc:
     def __init__(self, images, homographies, dim=8):
         self._images = images
@@ -8,15 +11,14 @@ class ImProc:
         (self._height, self._width) = images[0].shape[:2]
         self._dim = dim
         self._nrImg = len(images)
-        self._imRef=images(len(images)//2)
+        self._imRef = images(len(images) // 2)
         self._HREF = self.calculateHomographies()
-
 
     def calculateHomographies(self):
         st = panorama.Stitcher()
-        Href=[]
+        Href = []
         for i in self._images:
-            H=st.getHomography(i,self._imRef)
+            H = st.getHomography(i, self._imRef)
             Href.append(H)
         return Href
 
@@ -35,48 +37,50 @@ class ImProc:
                     n = 0
                     MSE = 0
 
-
-                    HrefK1 = st.getHomography(img1, self._imRef)
-                    HrefK2 = st.getHomography(img2, self._imRef)
-
                     for y in range(i, min(i + self._dim, self._height)):
                         for x in range(j, min(j + self._dim, self._width)):
                             n += 1
-                            MSE += self.meanSquareError(y, x, self._images[k], self._images.get[k + 1])
-
+                            MSE += self.meanSquareError(y, x, k)
 
                 MSE /= n
                 if MSE < minMeanSquaredError:
                     minMeanSquaredError = MSE
                     idMinDiffImgPair = k
                     #
-                for y in range (i,min(i + self._dim, self._height)):
+                for y in range(i, min(i + self._dim, self._height)):
                     for x in range(j, min(j + self._dim, self._width)):
                         firstImgPixel = self._images[idMinDiffImgPair][y][x]
 
-                        pts=[[x,y]]
+                        pts = [[x, y]]
                         pts = np.array(pts, dtype=np.float32).reshape((-1, 1, 2))  # todo what does reshape do?
                         dst = cv2.perspectiveTransform(pts, self._homographies[idMinDiffImgPair])
-                        [xp,yp]=dst[0][0]
-                        [xp,yp]=[int(xp),int(yp)]
-                        secondImgPixel = self._images[idMinDiffImgPair+1][xp][yp]
+                        [xp, yp] = dst[0][0]
+                        [xp, yp] = [int(xp), int(yp)]
+                        secondImgPixel = self._images[idMinDiffImgPair + 1][xp][yp]
 
                         meanPixel = getMeanPixel(firstImgPixel, secondImgPixel)
 
                         cleanImage[x][y] = meanPixel
 
-    def meanSquareError(self, y, x, img1, img2):
+    def meanSquareError(self, y, x, k):
+        img1 = self._images[k]
+        img2 = self._images[k + 1]
+        Href1 = self._HREF[k]
+        Href2 = self._HREF[k + 1]
 
+        # todo [x,y] sau [y,x]?
         pts = np.array([[x, y]], dtype=np.float32).reshape((-1, 1, 2))  # todo what does reshape do?
+        trans1 = cv2.perspectiveTransform(pts, Href1)
+        trans2 = cv2.perspectiveTransform(pts, Href2)
 
+        pixel1 = img1[trans1[0][0]]
+        pixel2 = img2[trans2[0][0]]
 
+        return getLuminance(pixel1) - getLuminance(pixel2)
 
 
 def getMeanPixel(firstImgPixel, secondImgPixel):
     pass
-
-
-
 
 
 def getLuminance(pixel):
