@@ -1,6 +1,6 @@
 # import the necessary packages
+
 import cv2
-import imutils
 import numpy as np
 
 
@@ -10,7 +10,7 @@ def testHomography(matrix, imageA, imageB):
     end = start + blockDim
     pts = []
     for x in range(start, end):
-        for y in range(start, end):
+        for y in range(start, end + 100):
             pts.append([x, y])
 
     pts = np.array(pts, dtype=np.float32).reshape((-1, 1, 2))  # todo what does reshape do?
@@ -31,27 +31,26 @@ def testHomography(matrix, imageA, imageB):
             maxy = yp
         if yp < miny:
             miny = yp
-        print(str(xp) + "   " + str(yp) + "\n")
         b.append([xp, yp])
 
     miny = max(miny, 0)
     minx = max(minx, 0)
-    crop_img = imageA[miny:(miny + blockDim), minx:(minx + blockDim)]
+    crop_img = imageA[miny:(miny + blockDim + 100), minx:(minx + blockDim)]
     orig_img = imageB[start:end, start:end]
     cv2.imshow("orig", orig_img)
     cv2.imshow("cropped", crop_img)
 
     wp = cv2.warpPerspective(imageB, matrix, (700, 700))
-    # cv2.imshow("wp", wp)
-    # cv2.imshow("a", imageA)
+    cv2.imshow("wp", wp)
+    cv2.imshow("a", imageA)
 
     pass
 
 
 class Stitcher:
-    def __init__(self):
-        # determine if we are using OpenCV v3.X
-        self.isv3 = imutils.is_cv3()
+    # def __init__(self):
+    # # determine if we are using OpenCV v3.X
+    # self.isv3 = imutils.is_cv3()
 
     def getHomography(self, images, ratio=0.75, reprojThresh=4.0,  # todo what are these
                       showMatches=True):
@@ -73,12 +72,12 @@ class Stitcher:
         # otherwise, apply a perspective warp to stitch the images
         # together
         (matches, H, status) = M
-        testHomography(H, imageA, imageB)
+        # testHomography(H, imageA, imageB)
 
         return H
 
         result = cv2.warpPerspective(imageB, H,
-                                     (imageB.shape[1] + imageA.shape[1], imageB.shape[0]+100))
+                                     (imageB.shape[1] + imageA.shape[1], imageB.shape[0] + 100))
         cv2.imshow("b", result)
 
         result[0:imageA.shape[0], 0:imageA.shape[1]] = imageA
@@ -102,20 +101,20 @@ class Stitcher:
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
         # check to see if we are using OpenCV 3.X
-        if self.isv3:
+        if True:
             # detect and extract features from the image
-            descriptor = cv2.xfeatures2d.SIFT_create()
+            descriptor = cv2.ORB_create()
             (keypoints, features) = descriptor.detectAndCompute(image, None)
 
         # otherwise, we are using OpenCV 2.4.X
-        else:
-            # detect keypoints in the image
-            detector = cv2.FeatureDetector_create("SIFT")
-            keypoints = detector.detect(gray)
-
-            # extract features from the image
-            extractor = cv2.DescriptorExtractor_create("SIFT")
-            (keypoints, features) = extractor.compute(gray, keypoints)
+        # else:
+        #     # detect keypoints in the image
+        #     detector = cv2.ORB_create()
+        #     keypoints = detector.detect(gray)
+        #
+        #     # extract features from the image
+        #     extractor = cv2.DescriptorExtractor_create("ORB")
+        #     (keypoints, features) = extractor.compute(gray, keypoints)
 
         # convert the keypoints from KeyPoint objects to NumPy
         # arrays

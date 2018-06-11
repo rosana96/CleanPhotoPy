@@ -1,9 +1,7 @@
 import math
 
-import cv2
-import sys
-import skvideo.io
 
+import cv2
 
 class FrameExtractor:
     def __init__(self, videoFile):
@@ -11,21 +9,22 @@ class FrameExtractor:
         self._frames = []
 
     def extractFrames(self):
-        videoFile = self._videoFile
+
         imagesFolder = "images/frames"
-        cap = cv2.VideoCapture(videoFile)
+        images=[]
+        #print(cv2.__version__)
+        cap = cv2.VideoCapture(self._videoFile)
+        cap.open(self._videoFile)
         frameRate = cap.get(5)  # frame rate
-        while (cap.isOpened() or True):
+        while (cap.isOpened()):
             frameId = cap.get(1)  # current frame number
             ret, frame = cap.read()
             if (ret != True):
                 break
-            if (frameId % math.floor(frameRate) == 0):
+            if frameId % (math.floor(frameRate)//2) == 0:
                 filename = imagesFolder + "/image_" + str(int(frameId)) + ".jpg"
                 cv2.imwrite(filename, frame)
+                images.append(frame)
         cap.release()
+        return images
 
-
-
-fe = FrameExtractor('v2.mp4')
-fe.extractFrames()
