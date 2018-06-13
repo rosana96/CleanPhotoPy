@@ -47,7 +47,7 @@ def testHomography(matrix, imageA, imageB):
     pass
 
 
-class Stitcher:
+class Matcher:
     # def __init__(self):
     # # determine if we are using OpenCV v3.X
     # self.isv3 = imutils.is_cv3()

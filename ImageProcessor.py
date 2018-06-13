@@ -3,8 +3,8 @@ import abc
 import cv2
 import numpy as np
 
-from Converter import Converter
-from pyimagesearch import panorama
+from utils import Matcher
+from utils.Converter import Converter
 
 
 class AbstractImageProcessor:
@@ -15,7 +15,7 @@ class AbstractImageProcessor:
         (self._height, self._width) = images[0].shape[:2]
         self._dim = dim
         self._nrImg = len(images)
-        self._imRef = images[(len(images) - 1) // 2]
+        self._imRef = images[(len(images)-1) // 2]
 
     def reconstructCleanImage(self):
 
@@ -24,31 +24,35 @@ class AbstractImageProcessor:
         for i in range(0, self._height, self._dim):
             for j in range(0, self._width, self._dim):
                 # calculam macroblockul(i, j) din imaginea finala
-                INF = 1000000000
+                INF = 10000000000000
                 minMeanSquaredError = INF
                 idMinDiffImgPair = -1
+                delta = 1
 
                 for k in range(0, self._nrImg - 1):
-                    try:
-                        n = 0
-                        MSE = 0
-                        for y in range(i, min(i + self._dim, self._height)):
-                            for x in range(j, min(j + self._dim, self._width)):
-                                n += 1
-                                MSE += self.meanSquareError(y, x, k)
+                    delta = 1
+                    for step in range(1, 4):
+                        if k + step < self._nrImg:
+                            try:
+                                n = 0
+                                MSE = 0
+                                for y in range(i, min(i + self._dim, self._height)):
+                                    for x in range(j, min(j + self._dim, self._width)):
+                                        n += 1
+                                        MSE += self.meanSquareError(y, x, k, step)
 
-                        MSE /= n
-                        if MSE < minMeanSquaredError:
-                            minMeanSquaredError = MSE
-                            idMinDiffImgPair = k
-                    except Exception:
-                        pass
-                        ######################################################################################
+                                MSE /= n
+                                if MSE < minMeanSquaredError:
+                                    minMeanSquaredError = MSE
+                                    idMinDiffImgPair = k
+                                    delta = step
+                            except Exception:
+                                pass
 
                 if idMinDiffImgPair == -1:
-                    break
+                    continue
 
-                self.reconstructBlock(i, j, cleanImage, idMinDiffImgPair)
+                self.reconstructBlock(i, j, cleanImage, idMinDiffImgPair, delta)
 
         return cleanImage
 
@@ -56,7 +60,7 @@ class AbstractImageProcessor:
         R = pixel[2]
         G = pixel[1]
         B = pixel[0]
-        y = (int)(0.299 * R + 0.587 * G + 0.114 * B)
+        y = int(0.299 * R + 0.587 * G + 0.114 * B)
         return y
 
     def getMeanPixel(self, firstImgPixel, secondImgPixel):
@@ -72,11 +76,11 @@ class AbstractImageProcessor:
         return converter.yuvToBgr(yuvResult)
 
     @abc.abstractmethod
-    def meanSquareError(self, y, x, k):
+    def meanSquareError(self, y, x, k, delta):
         return
 
     @abc.abstractmethod
-    def reconstructBlock(self, i, j, cleanImage, idMinDiffImgPair):
+    def reconstructBlock(self, i, j, cleanImage, idMinDiffImgPair, delta):
         return
 
 
@@ -86,17 +90,17 @@ class MovingCameraImageProcessor(AbstractImageProcessor):
         self._HREF = self.calculateHomographies()
 
     def calculateHomographies(self):
-        st = panorama.Stitcher()
+        matcher = Matcher.Matcher()
         Href = []
         for i in self._images:
-            H = st.getHomography([i, self._imRef])
+            H = matcher.getHomography([i, self._imRef])
             Href.append(H)
         return Href
 
     def reconstructBlock(self, i, j, cleanImage, idMinDiffImgPair, delta=1):
         for y in range(i, min(i + self._dim, self._height)):
             for x in range(j, min(j + self._dim, self._width)):
-                print("id min diff -------------  " + str(i) + " " + str(j))
+                print("id min diff -------------  " + str(i) + " " + str(j)+ "STEP: " + str(delta))
                 print(idMinDiffImgPair)
 
                 pts = [[x, y]]
@@ -106,8 +110,7 @@ class MovingCameraImageProcessor(AbstractImageProcessor):
                 [xp1, yp1] = dst[0][0]
                 [xp1, yp1] = [int(xp1), int(yp1)]
 
-
-                dst = cv2.perspectiveTransform(pts, self._HREF[idMinDiffImgPair + 1])
+                dst = cv2.perspectiveTransform(pts, self._HREF[idMinDiffImgPair + delta])
                 [xp2, yp2] = dst[0][0]
                 [xp2, yp2] = [int(xp2), int(yp2)]
 
@@ -117,14 +120,14 @@ class MovingCameraImageProcessor(AbstractImageProcessor):
                 yp2 = min(max(yp2, 0), self._height - 1)
 
                 pixel = self._images[idMinDiffImgPair][yp1][xp1]
-                # pixel = self.getMeanPixel(self._images[idMinDiffImgPair][yp1][xp1], self._images[idMinDiffImgPair+1][yp2][xp2])
+                # pixel = self.getMeanPixel(self._images[idMinDiffImgPair][yp1][xp1], self._images[idMinDiffImgPair+delta][yp2][xp2])
                 cleanImage[y][x] = pixel
 
-    def meanSquareError(self, y, x, imgPos):
+    def meanSquareError(self, y, x, imgPos, delta):
         img1 = self._images[imgPos]
-        img2 = self._images[imgPos + 1]
+        img2 = self._images[imgPos + delta]
         Href1 = self._HREF[imgPos]
-        Href2 = self._HREF[imgPos + 1]
+        Href2 = self._HREF[imgPos + delta]
 
         pts = np.array([[x, y]], dtype=np.float32).reshape((-1, 1, 2))
         trans1 = cv2.perspectiveTransform(pts, Href1)[0][0]
@@ -143,7 +146,7 @@ class MovingCameraImageProcessor(AbstractImageProcessor):
         yp2 = int(trans2[1])
 
         # small errors are accepted
-        err=5
+        err = 5
         if xp1 not in range(-err, self._width + err):
             raise Exception
         if xp2 not in range(-err, self._width + err):
@@ -172,19 +175,19 @@ class StillCameraImageProcessor(AbstractImageProcessor):
     def __init__(self, images, dim=64):
         super().__init__(images, dim)
 
-    def reconstructBlock(self, i, j, cleanImage, idMinDiffImgPair):
+    def reconstructBlock(self, i, j, cleanImage, idMinDiffImgPair, delta=1):
         for y in range(i, min(i + self._dim, self._height)):
             for x in range(j, min(j + self._dim, self._width)):
-                print("STILL: id min diff -------------  " + str(y) + " " + str(x))
+                print("STILL: id min diff -------------  " + str(y) + " " + str(x)+ "STEP: " + str(delta))
                 print(idMinDiffImgPair)
 
-                # pixel = self.getMeanPixel(self._images[idMinDiffImgPair][y][x], self._images[idMinDiffImgPair+1][y][x])
+                # pixel = self.getMeanPixel(self._images[idMinDiffImgPair][y][x], self._images[idMinDiffImgPair+delta][y][x])
                 pixel = self._images[idMinDiffImgPair][y][x]
                 cleanImage[y][x] = pixel
 
-    def meanSquareError(self, y, x, imgPos):
+    def meanSquareError(self, y, x, imgPos, delta=1):
         img1 = self._images[imgPos]
-        img2 = self._images[imgPos + 1]
+        img2 = self._images[imgPos + delta]
 
         pixel1 = img1[y][x]
         pixel2 = img2[y][x]

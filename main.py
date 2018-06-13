@@ -3,9 +3,9 @@
 
 import imutils
 
-# import the necessary packages
-from FrameExtractor import FrameExtractor
 from ImageProcessor import *
+# import the necessary packages
+from utils.FrameExtractor import FrameExtractor
 
 WIDTH = 500
 
@@ -42,9 +42,13 @@ def useVideo():
 # images = useVideo()
 images = useSeparateImages()
 
-blockDim=8
+blockDim=9
 imgProc = MovingCameraImageProcessor(images, blockDim)
 cleanImage = imgProc.reconstructCleanImage()
+imagesFolder = "images/results"
+filename = imagesFolder + "/image_" + str(blockDim) + ".jpg"
+cv2.imwrite(filename, cleanImage)
+
 cv2.imshow("clean"+str(blockDim), cleanImage)
 
 # for i in range (4,32,4):
