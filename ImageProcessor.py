@@ -15,7 +15,7 @@ class AbstractImageProcessor:
         (self._height, self._width) = images[0].shape[:2]
         self._dim = dim
         self._nrImg = len(images)
-        self._imRef = images[(len(images)-1) // 2]
+        self._imRef = images[(len(images)) // 2]
 
     def reconstructCleanImage(self):
 
@@ -23,15 +23,16 @@ class AbstractImageProcessor:
         # cleanImage = np.copy(self._imRef)
         for i in range(0, self._height, self._dim):
             for j in range(0, self._width, self._dim):
-                # calculam macroblockul(i, j) din imaginea finala
+                # we calculate the macroblock(i, j) from the final image
                 INF = 10000000000000
                 minMeanSquaredError = INF
+                maxMeanSquaredError = 0
                 idMinDiffImgPair = -1
                 delta = 1
 
                 for k in range(0, self._nrImg - 1):
                     delta = 1
-                    for step in range(1, 4):
+                    for step in range(1, 3):
                         if k + step < self._nrImg:
                             try:
                                 n = 0
@@ -42,16 +43,21 @@ class AbstractImageProcessor:
                                         MSE += self.meanSquareError(y, x, k, step)
 
                                 MSE /= n
+                                if MSE>maxMeanSquaredError:
+                                    maxMeanSquaredError=MSE
                                 if MSE < minMeanSquaredError:
                                     minMeanSquaredError = MSE
                                     idMinDiffImgPair = k
                                     delta = step
                             except Exception:
                                 pass
-
+                    if minMeanSquaredError < 0.5:
+                        break
                 if idMinDiffImgPair == -1:
                     continue
 
+                print("MIN MSE: " + str(minMeanSquaredError))
+                print("MAX MSE: " + str(maxMeanSquaredError))
                 self.reconstructBlock(i, j, cleanImage, idMinDiffImgPair, delta)
 
         return cleanImage
@@ -68,11 +74,16 @@ class AbstractImageProcessor:
         firstYUV = converter.bgrToYuv(firstImgPixel)
         secondYUV = converter.bgrToYuv(secondImgPixel)
 
-        Y = (firstYUV[0] + secondYUV[0]) // 2
-        U = (firstYUV[1] + secondYUV[1]) // 2
-        V = (firstYUV[2] + secondYUV[2]) // 2
+        if sum(firstImgPixel)==0:
+            return secondImgPixel
+        elif sum(secondImgPixel)==0:
+            return firstImgPixel
+        else:
+            Y = (firstYUV[0] + secondYUV[0]) // 2
+            U = (firstYUV[1] + secondYUV[1]) // 2
+            V = (firstYUV[2] + secondYUV[2]) // 2
 
-        yuvResult = [Y, U, V]
+            yuvResult = [Y, U, V]
         return converter.yuvToBgr(yuvResult)
 
     @abc.abstractmethod
@@ -100,7 +111,7 @@ class MovingCameraImageProcessor(AbstractImageProcessor):
     def reconstructBlock(self, i, j, cleanImage, idMinDiffImgPair, delta=1):
         for y in range(i, min(i + self._dim, self._height)):
             for x in range(j, min(j + self._dim, self._width)):
-                print("id min diff -------------  " + str(i) + " " + str(j)+ "STEP: " + str(delta))
+                print("id min diff -------------  " + str(i) + " " + str(j)+ " STEP: " + str(delta))
                 print(idMinDiffImgPair)
 
                 pts = [[x, y]]
@@ -146,7 +157,7 @@ class MovingCameraImageProcessor(AbstractImageProcessor):
         yp2 = int(trans2[1])
 
         # small errors are accepted
-        err = 5
+        err = 3
         if xp1 not in range(-err, self._width + err):
             raise Exception
         if xp2 not in range(-err, self._width + err):
@@ -163,10 +174,6 @@ class MovingCameraImageProcessor(AbstractImageProcessor):
 
         pixel1 = img1[yp1][xp1]
         pixel2 = img2[yp2][xp2]
-
-        # cv2.imshow("Image A", img1)
-        # cv2.imshow("Image B", img2)
-        # cv2.imshow("ref", self._imRef)
 
         return (self.getLuminance(pixel1) - self.getLuminance(pixel2)) ** 2
 

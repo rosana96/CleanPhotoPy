@@ -47,11 +47,13 @@ def testHomography(matrix, imageA, imageB):
     pass
 
 
-class Matcher:
-    # def __init__(self):
-    # # determine if we are using OpenCV v3.X
-    # self.isv3 = imutils.is_cv3()
+def fct(coordinates, image):
+    w, h = coordinates
+    pixel = image[int(h)][int(w)]
+    return sum(pixel) > 20
 
+
+class Matcher:
     def getHomography(self, images, ratio=0.75, reprojThresh=4.0,  # todo what are these
                       showMatches=True):
         # unpack the images, then detect keypoints and extract
@@ -62,7 +64,7 @@ class Matcher:
 
         # match features between the two images
         M = self.matchKeypoints(kpsB, kpsA,
-                                featuresB, featuresA, ratio, reprojThresh)
+                                featuresB, featuresA, ratio, reprojThresh, imageA, imageB)
 
         # if the match is None, then there aren't enough matched
         # keypoints to create a panorama
@@ -77,30 +79,23 @@ class Matcher:
         return H
 
         result = cv2.warpPerspective(imageB, H,
-                                     (imageB.shape[1] + imageA.shape[1], imageB.shape[0] + 100))
-        cv2.imshow("b", result)
-
+                                     (imageB.shape[1] + imageA.shape[1], imageB.shape[0]))
         result[0:imageA.shape[0], 0:imageA.shape[1]] = imageA
 
         return H
 
-        # check to see if the keypoint matches should be visualized
         if showMatches:
             vis = self.drawMatches(imageA, imageB, kpsA, kpsB, matches,
                                    status)
 
-            # return a tuple of the stitched image and the
-            # visualization
             return (result, vis)
 
-        # return the stitched image
         return result
 
     def detectAndDescribe(self, image):
         # convert the image to grayscale
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-        # check to see if we are using OpenCV 3.X
         if True:
             # detect and extract features from the image
             descriptor = cv2.ORB_create()
@@ -124,7 +119,7 @@ class Matcher:
         return (keypoints, features)
 
     def matchKeypoints(self, kpsA, kpsB, featuresA, featuresB,
-                       ratio, reprojThresh):
+                       ratio, reprojThresh, imageA, imageB):
         # compute the raw matches and initialize the list of actual
         # matches
         matcher = cv2.DescriptorMatcher_create("BruteForce")
@@ -141,14 +136,26 @@ class Matcher:
         # computing a homography requires at least 4 matches
         if len(matches) > 4:
             # construct the two sets of points
-            ptsA = np.float32([kpsA[i] for (_, i) in matches])
-            ptsB = np.float32([kpsB[i] for (i, _) in matches])
+            # todo ORDER THEM BY HOW BLACK THEY ARE AND SELECT FIRST 40 or first 50%...
+            ptsA = np.float32([kpsA[i] for (_, i) in matches if fct(kpsA[i], imageA)])
+            ptsB = np.float32([kpsB[i] for (i, j) in matches if fct(kpsA[j], imageA)])
+            # pointsA = np.copy(ptsA)
+            # pointsB = np.copy(ptsB)
+            # for i in range(0, len(ptsA)):
+            #     w, h = ptsA[i]
+            #     pixel = imageA[int(h)][int(w)]
+            #     if sum(pixel) < 100:
+            #         # pixel is blackish
+            #         index = np.argwhere(pointsA == ptsA[i])
+            #         pointsA = np.delete(pointsA, index)
+            #         pointsB = np.delete(pointsB, index)
 
             # compute the homography between the two sets of points
+            print(len(ptsA))
             (H, status) = cv2.findHomography(ptsA, ptsB, cv2.RANSAC,
                                              reprojThresh)
 
-            # return the matches along with the homograpy matrix
+            # return the matches along with the homography matrix
             # and status of each matched point
             return (matches, H, status)
 
