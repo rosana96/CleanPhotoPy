@@ -4,12 +4,12 @@ class Converter:
         G = pixelBGR[1]
         R = pixelBGR[2]
 
-        if B == 0 and G == 0 and R == 0:
-            print("pixel has null value")
+        # if B == 0 and G == 0 and R == 0:
+        #     print("pixel has null value")
 
-        Y = int(0.299 * R + 0.587 * G + 0.114 * B)
-        U = int(-0.147 * R - 0.289 * G + 0.436 * B)
-        V = int(0.615 * R - 0.515 * G - 0.100 * B)
+        Y = 0.299 * R + 0.587 * G + 0.114 * B
+        U = -0.147 * R - 0.289 * G + 0.436 * B
+        V = 0.615 * R - 0.515 * G - 0.100 * B
 
         return [Y, U, V]
 

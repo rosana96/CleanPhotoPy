@@ -7,42 +7,44 @@ from ImageProcessor import *
 # import the necessary packages
 from utils.FrameExtractor import FrameExtractor
 
-WIDTH = 600
+WIDTH = 810
+FRAMES_PER_SECOND = 2
 
 
 def useSeparateImages():
-    images=[]
-    filename="images/cables/cb"
-    for i in range (1,5):
-        fullname=filename+str(i)+".jpg"
-        image=cv2.imread(fullname)
+    images = []
+    filename = "images/cables/palat"
+    for i in range(1, 5):
+        fullname = filename + str(i) + ".jpg"
+        image = cv2.imread(fullname)
         image = imutils.resize(image, width=WIDTH)
         images.append(image)
     return images
 
 
 def useVideo():
-    fe = FrameExtractor('videos/vid7.mp4')
+    fe = FrameExtractor('videos/vid15.mp4', FRAMES_PER_SECOND)
     imgs = fe.extractFrames()
     images = []
+    k = 0
     for i in imgs:
         i = imutils.resize(i, width=WIDTH)
         images.append(i)
-
+        # cv2.imshow("im"+str(k),i)
+        k = k + 1
     return images
 
 
 images = useVideo()
 # images = useSeparateImages()
-
-blockDim=4
+blockDim = 64
 imgProc = MovingCameraImageProcessor(images, blockDim)
 cleanImage = imgProc.reconstructCleanImage()
 imagesFolder = "images/results"
-filename = imagesFolder + "/image_" + str(blockDim) + ".jpg"
+filename = imagesFolder + "/img_" + str(blockDim) + "_" + str(WIDTH) + "_" + str(FRAMES_PER_SECOND) + ".jpg"
 cv2.imwrite(filename, cleanImage)
 
-cv2.imshow("clean"+str(blockDim), cleanImage)
+cv2.imshow("clean" + str(blockDim), cleanImage)
 
 # for i in range (4,32,4):
 #     blockDim = i
@@ -72,4 +74,4 @@ cv2.imshow("clean"+str(blockDim), cleanImage)
 cv2.waitKey(0)
 
 
-#TODO sa nu ia in considerare matches din prima treime de imagine
+# TODO sa nu ia in considerare matches din prima treime de imagine

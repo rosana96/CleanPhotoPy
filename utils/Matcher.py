@@ -47,10 +47,10 @@ def testHomography(matrix, imageA, imageB):
     pass
 
 
-def fct(coordinates, image):
+def isBlackPoint(coordinates, image):
     w, h = coordinates
     pixel = image[int(h)][int(w)]
-    return sum(pixel) > 20
+    return sum(pixel) > 75
 
 
 class Matcher:
@@ -101,18 +101,7 @@ class Matcher:
             descriptor = cv2.ORB_create()
             (keypoints, features) = descriptor.detectAndCompute(image, None)
 
-        # otherwise, we are using OpenCV 2.4.X
-        # else:
-        #     # detect keypoints in the image
-        #     detector = cv2.ORB_create()
-        #     keypoints = detector.detect(gray)
-        #
-        #     # extract features from the image
-        #     extractor = cv2.DescriptorExtractor_create("ORB")
-        #     (keypoints, features) = extractor.compute(gray, keypoints)
-
-        # convert the keypoints from KeyPoint objects to NumPy
-        # arrays
+        # convert the keypoints from KeyPoint objects to NumPy arrays
         keypoints = np.float32([kp.pt for kp in keypoints])
 
         # return a tuple of keypoints and features
@@ -120,16 +109,14 @@ class Matcher:
 
     def matchKeypoints(self, kpsA, kpsB, featuresA, featuresB,
                        ratio, reprojThresh, imageA, imageB):
-        # compute the raw matches and initialize the list of actual
-        # matches
+        # compute the raw matches and initialize the list of actual matches
         matcher = cv2.DescriptorMatcher_create("BruteForce")
         rawMatches = matcher.knnMatch(featuresA, featuresB, 2)
         matches = []
 
         # loop over the raw matches
         for m in rawMatches:
-            # ensure the distance is within a certain ratio of each
-            # other (i.e. Lowe's ratio test)
+            # ensure the distance is within a certain ratio of each other (i.e. Lowe's ratio test)
             if len(m) == 2 and m[0].distance < m[1].distance * ratio:
                 matches.append((m[0].trainIdx, m[0].queryIdx))
 
@@ -137,29 +124,18 @@ class Matcher:
         if len(matches) > 4:
             # construct the two sets of points
             # todo ORDER THEM BY HOW BLACK THEY ARE AND SELECT FIRST 40 or first 50%...
-            ptsA = np.float32([kpsA[i] for (_, i) in matches if fct(kpsA[i], imageA)])
-            ptsB = np.float32([kpsB[i] for (i, j) in matches if fct(kpsA[j], imageA)])
-            # pointsA = np.copy(ptsA)
-            # pointsB = np.copy(ptsB)
-            # for i in range(0, len(ptsA)):
-            #     w, h = ptsA[i]
-            #     pixel = imageA[int(h)][int(w)]
-            #     if sum(pixel) < 100:
-            #         # pixel is blackish
-            #         index = np.argwhere(pointsA == ptsA[i])
-            #         pointsA = np.delete(pointsA, index)
-            #         pointsB = np.delete(pointsB, index)
+            ptsA = np.float32([kpsA[i] for (_, i) in matches if isBlackPoint(kpsA[i], imageA)])
+            ptsB = np.float32([kpsB[i] for (i, j) in matches if isBlackPoint(kpsA[j], imageA)])
 
             # compute the homography between the two sets of points
             print(len(ptsA))
             (H, status) = cv2.findHomography(ptsA, ptsB, cv2.RANSAC,
                                              reprojThresh)
 
-            # return the matches along with the homography matrix
-            # and status of each matched point
+            # return the matches along with the homography matrix and status of each matched point
             return (matches, H, status)
 
-        # otherwise, no homograpy could be computed
+        # otherwise, no homography could be computed
         return None
 
     def drawMatches(self, imageB, imageA, kpsB, kpsA, matches, status):
