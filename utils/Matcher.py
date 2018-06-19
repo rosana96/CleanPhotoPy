@@ -50,7 +50,7 @@ def testHomography(matrix, imageA, imageB):
 def isBlackPoint(coordinates, image):
     w, h = coordinates
     pixel = image[int(h)][int(w)]
-    return sum(pixel) > 75
+    return sum(pixel) > 100
 
 
 class Matcher:
@@ -129,8 +129,7 @@ class Matcher:
 
             # compute the homography between the two sets of points
             print(len(ptsA))
-            (H, status) = cv2.findHomography(ptsA, ptsB, cv2.RANSAC,
-                                             reprojThresh)
+            (H, status) = cv2.findHomography(ptsA, ptsB, cv2.RANSAC, reprojThresh)
 
             # return the matches along with the homography matrix and status of each matched point
             return (matches, H, status)

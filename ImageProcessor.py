@@ -15,7 +15,7 @@ class AbstractImageProcessor:
         (self._height, self._width) = images[0].shape[:2]
         self._dim = dim
         self._nrImg = len(images)
-        self._refImagePosition = (len(images)) // 2
+        self._refImagePosition = (len(images)-1) // 2
         self._imRef = images[self._refImagePosition]
 
     def reconstructCleanImage(self):
@@ -34,7 +34,7 @@ class AbstractImageProcessor:
                 # takes pairs of images to compare their correspondent blocks
                 for position in range(0, self._nrImg - 1):
                     # delta = 1
-                    for step in range(1, 4):
+                    for step in range(1, self._nrImg-2):
                         position2 = position + step  # the position of the second image
                         if position2 < self._nrImg:
                             try:
@@ -44,14 +44,14 @@ class AbstractImageProcessor:
                                 if MSE > maxMeanSquaredError:
                                     maxMeanSquaredError = MSE
                                 if MSE < minMeanSquaredError:
-                                    MSE_REF = self.blockMeanSquaredError(i, j, position, self._refImagePosition)
+                                    # MSE_REF = self.blockMeanSquaredError(i, j, position, self._refImagePosition)
 
                                     minMeanSquaredError = MSE
                                     idMinDiffImgPair = position
                                     delta = step
                             except Exception:
                                 pass
-                    if minMeanSquaredError < 1:
+                    if minMeanSquaredError < 2:
                         break
                 if idMinDiffImgPair == -1:
                     continue

@@ -7,8 +7,8 @@ from ImageProcessor import *
 # import the necessary packages
 from utils.FrameExtractor import FrameExtractor
 
-WIDTH = 810
-FRAMES_PER_SECOND = 2
+WIDTH = 750
+FRAMES_PER_SECOND = 1
 
 
 def useSeparateImages():
@@ -37,7 +37,8 @@ def useVideo():
 
 images = useVideo()
 # images = useSeparateImages()
-blockDim = 64
+
+blockDim = 16
 imgProc = MovingCameraImageProcessor(images, blockDim)
 cleanImage = imgProc.reconstructCleanImage()
 imagesFolder = "images/results"
@@ -63,13 +64,13 @@ cv2.imshow("clean" + str(blockDim), cleanImage)
 #
 # imageA = imutils.resize(imageA, width=WIDTH)
 # imageB = imutils.resize(imageB, width=WIDTH)
-# stalpi=[imageA,imageB]
+# imgs=[images[6], images[3]]
 #
 # matcher = Matcher.Matcher()
-# result, vis = matcher.getHomography(stalpi)
-# cv2.imshow("result", result)
+# result, vis = matcher.getHomography(imgs)
+# # cv2.imshow("result", result)
 # cv2.imshow("vis", vis)
-# cv2.imwrite("images/Matches_Palat.jpg",vis)
+# cv2.imwrite("images/Matches_coregrafie1.jpg",vis)
 
 cv2.waitKey(0)
 
